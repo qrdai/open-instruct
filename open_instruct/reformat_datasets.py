@@ -32,12 +32,12 @@ def convert_super_ni_data(data_dir, output_dir, zero_shot_examples_per_task=60, 
     with open(os.path.join(data_dir, "splits", "xlingual", "train_tasks.txt"), "r") as fin:
         for line in fin:
             if not "_mmmlu_" in line:   # skip mmlu to avoid test leakage
-                train_tasks.append(line.strip())
+                train_tasks.append(line.strip())    # 1270 tasks altogether for `xlingual/train_tasks.txt`
     with open(os.path.join(output_dir, "super_ni_data.jsonl"), "w") as fout:
         for task in train_tasks:
             with open(os.path.join(data_dir, "tasks", f"{task}.json"), "r") as fin:
                 task_data = json.load(fin)
-            instruction = task_data["Definition"][0]
+            instruction = task_data["Definition"][0]    # definition is necessary as the instruction, otherwise only "input" in "instances" doesn't form a valid query
             if zero_shot_examples_per_task + few_shot_examples_per_task < len(task_data["Instances"]):
                 instances = random.sample(task_data["Instances"], k=zero_shot_examples_per_task+few_shot_examples_per_task)
             else:
@@ -46,8 +46,8 @@ def convert_super_ni_data(data_dir, output_dir, zero_shot_examples_per_task=60, 
                 encoded_example = encode_instruction_example(
                     instruction=instruction, 
                     input=instance["input"], 
-                    output=instance["output"][0],
-                    random_template=True,
+                    output=instance["output"][0],   # only take the first output as the reference answer
+                    random_template=True,   # should be added by tokenizer but not in raw text
                     eos_token=None
                 )
                 fout.write(json.dumps({
@@ -59,7 +59,7 @@ def convert_super_ni_data(data_dir, output_dir, zero_shot_examples_per_task=60, 
                     ]
                 }) + "\n")
             for instance in instances[zero_shot_examples_per_task:]:
-                if n_few_shot < len(task_data["Positive Examples"]):
+                if n_few_shot < len(task_data["Positive Examples"]):    # use the 5 "Positive Examples" per task as the context for each example
                     examplars = random.sample(task_data["Positive Examples"], k=n_few_shot)
                 else:
                     examplars = task_data["Positive Examples"]
